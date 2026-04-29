@@ -39,6 +39,11 @@ _skill = ElkoSkill(
     schema_sql=SCHEMA,
 )
 
+
+def get_skill():
+    """Return the underlying ElkoSkill instance."""
+    return _skill
+
 # ── Allowed columns (whitelist for safe_update/safe_insert) ─
 _RECORD_COLUMNS = {'name', 'value', 'metadata'}
 

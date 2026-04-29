@@ -27,8 +27,8 @@ _SPEC.loader.exec_module(c)
 
 # ── Helpers ─────────────────────────────────────────────────
 def _seed_admin():
-    """Insert super-admin for tests. Schema is auto-created by ElkoSkill.connect()."""
-    conn = c._connect()
+    """Insert super-admin for tests. Schema is auto-created by get_skill().connect()."""
+    conn = c.get_skill().connect()
     conn.execute(
         "INSERT OR IGNORE INTO contacts (name, email, role, circle) VALUES (?, ?, ?, ?)",
         ('Test Admin', 'admin@elko.ai', 'super-admin', 'owner')

@@ -231,8 +231,10 @@ class TestEdgeCases:
 
     def test_env_var_override(self):
         assert os.environ['ELKO_THREADS_DB'] == TEST_DB
-        # DB path should match env var, accessible via _skill.db_path
-        assert t._connect() is not None
+        # get_skill().connect() auto-creates DB at the env-var path
+        conn = t.get_skill().connect()
+        assert conn is not None
+        conn.close()
 
     def test_missing_sent_at_defaults_now(self):
         result = t.capture('test-topic-now', 'email', {
