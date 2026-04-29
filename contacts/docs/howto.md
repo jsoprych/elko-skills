@@ -9,18 +9,66 @@
 ```bash
 git clone https://github.com/jsoprych/elko-skills.git
 cd elko-skills
-./install.sh contacts
+./install.sh contacts                         # production
 ```
 
 See [`docs/platforms/`](../docs/platforms/) for platform-specific setup.
+
+### Parallel install (dev/test)
+
+```bash
+# Development — separate DB, separate registry name, no conflict with prod
+./install.sh contacts --profile dev
+
+# Activate dev profile
+export ELKO_PROFILE=dev
+python3 -c "from contacts import contacts as hs; hs.list_all()"
+# → uses /tmp/elko-contacts-dev.db, registered as hs-contacts-dev
+
+# Back to production
+unset ELKO_PROFILE
+```
+
+Or with a custom suffix:
+
+```bash
+./install.sh contacts --suffix my-test
+export ELKO_CONTACTS_DB=/tmp/my-test-contacts.db
+```
+
+### Uninstall
+
+```bash
+./uninstall.sh hs-contacts          # remove production
+./uninstall.sh hs-contacts-dev       # remove dev profile
+./uninstall.sh hs-contacts --keep-db # remove module, keep data
+```
+
+---
+
+## Version
+
+```bash
+./install.sh --version
+# → elko-skills v0.1.0
+```
+
+Or from Python:
+
+```python
+from contacts import contacts as hs
+hs.get_skill().version()
+# → {'elko_framework_version': '0.1.0', 'installed_at': '2026-04-29 04:17:23'}
+```
 
 ---
 
 ## Database
 
-- **Path:** `/opt/data/elko-skills/contacts/contacts.db` (default)
+- **Production:** `/opt/data/elko-skills/contacts/contacts.db`
+- **Dev (profile):** `/tmp/elko-contacts-dev.db`
 - **Env override:** `ELKO_CONTACTS_DB`
-- **Tables:** `contacts`, `contact_phones`, `contact_platforms`, `auth_rules`
+- **Tables:** `contacts`, `contact_phones`, `contact_platforms`, `auth_rules`, `meta`
 - **Schema:** `schema.sql`
 
 ## Key functions

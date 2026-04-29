@@ -9,18 +9,51 @@
 ```bash
 git clone https://github.com/jsoprych/elko-skills.git
 cd elko-skills
-./install.sh threads
+./install.sh threads                         # production
 ```
 
 See [`docs/platforms/`](../docs/platforms/) for platform-specific setup.
+
+### Parallel install (dev/test)
+
+```bash
+# Development — separate DB, no conflict with prod
+./install.sh threads --profile dev
+
+# Activate dev profile
+export ELKO_PROFILE=dev
+python3 -c "from threads import threads as t; t.active()"
+# → uses /tmp/elko-threads-dev.db, registered as hs-threads-dev
+
+# Back to production
+unset ELKO_PROFILE
+```
+
+### Uninstall
+
+```bash
+./uninstall.sh hs-threads          # remove production
+./uninstall.sh hs-threads-dev       # remove dev profile
+```
+
+---
+
+## Version
+
+```python
+from threads import threads as t
+t.get_skill().version()
+# → {'elko_framework_version': '0.1.0', 'installed_at': '2026-04-29 04:17:23'}
+```
 
 ---
 
 ## Database
 
-- **Path:** `/opt/data/elko-skills/threads/threads.db` (default)
+- **Production:** `/opt/data/elko-skills/threads/threads.db`
+- **Dev (profile):** `/tmp/elko-threads-dev.db`
 - **Env override:** `ELKO_THREADS_DB`
-- **Tables:** `threads`, `messages`
+- **Tables:** `threads`, `messages`, `meta`
 - **Schema:** `schema.sql`
 
 ## Key functions
@@ -88,10 +121,6 @@ SELECT t.id, t.topic, t.updated_at
 FROM threads t
 WHERE t.tags LIKE '%"important"%'
 ORDER BY t.updated_at DESC;
-
--- Threads involving a specific participant
-SELECT * FROM threads
-WHERE participants LIKE '%john@elko.ai%';
 ```
 
 ## Thread lifecycle
