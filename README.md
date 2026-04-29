@@ -84,6 +84,7 @@ get_contact(email)                         → one contact + phones + platforms
 contact_permissions(email)                 → auth rules for a contact
 is_super_admin(email)                      → role check
 contacts_summary                           → "12 contacts (1 admin, 5 family)"
+skill_version                              → "0.1.0" (synced with pyproject.toml + git tag)
 
 add_contact(name, email, requester_email)        → requires super-admin
 update_contact(email, requester_email, ...)      → requires super-admin
@@ -98,6 +99,7 @@ list_threads(status)         → all threads, filterable
 thread_context(topic)        → full message history for a thread
 recent_threads(limit)        → latest activity across all threads
 threads_summary              → "8 threads (5 active), 34 messages"
+skill_version                → "0.1.0" (synced with pyproject.toml + git tag)
 
 capture_message(topic, channel, from_addr, ...)  → add a message; creates thread if new
 tag_thread(topic, tag)                           → tag a thread

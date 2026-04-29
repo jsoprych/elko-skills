@@ -35,13 +35,14 @@ python3 install_mcp.py threads --sandbox   # isolated DB, easy purge
 
 | Tool | Description |
 |------|-------------|
-| `active(limit)` | Active threads, newest first |
-| `all_threads(status, limit)` | All threads, filterable by status |
-| `context(topic, channel)` | Full message history for a thread |
-| `recent(limit)` | Latest activity across all threads |
-| `summary` | `"8 threads (5 active), 34 messages"` |
-| `capture(topic, channel, from_addr, ...)` | Add a message; creates thread if new |
-| `tag(topic, tag)` | Tag a thread (e.g. 'important', 'follow-up') |
+| `active_threads(limit)` | Active threads, newest first |
+| `list_threads(status, limit)` | All threads, filterable by status |
+| `thread_context(topic, channel)` | Full message history for a thread |
+| `recent_threads(limit)` | Latest activity across all threads |
+| `threads_summary` | `"8 threads (5 active), 34 messages"` |
+| `skill_version` | Server version, synced with `pyproject.toml` and git tag |
+| `capture_message(topic, channel, from_addr, ...)` | Add a message; creates thread if new |
+| `tag_thread(topic, tag)` | Tag a thread (e.g. 'important', 'follow-up') |
 
 ## Python API (direct access)
 

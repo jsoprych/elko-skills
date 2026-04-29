@@ -37,15 +37,16 @@ python3 install_mcp.py contacts --sandbox   # isolated DB, easy purge
 
 | Tool | Auth | Description |
 |------|------|-------------|
-| `list_all` | — | All contacts |
-| `find(query)` | — | Fuzzy search by name or email |
-| `get(email)` | — | One contact with phones and platform handles |
-| `get_permissions(email)` | — | Auth rules for a contact |
-| `check_is_super_admin(email)` | — | Role check |
-| `summary` | — | `"12 contacts (1 admin, 5 family)"` |
-| `add(name, email, requester_email)` | super-admin | Add a contact |
-| `update(email, requester_email, ...)` | super-admin | Update fields |
-| `grant(email, permission, requester_email)` | super-admin | Grant a permission |
+| `list_contacts` | — | All contacts |
+| `find_contact(query)` | — | Fuzzy search by name or email |
+| `get_contact(email)` | — | One contact with phones and platform handles |
+| `contact_permissions(email)` | — | Auth rules for a contact |
+| `is_super_admin(email)` | — | Role check |
+| `contacts_summary` | — | `"12 contacts (1 admin, 5 family)"` |
+| `skill_version` | — | Server version, synced with `pyproject.toml` and git tag |
+| `add_contact(name, email, requester_email)` | super-admin | Add a contact |
+| `update_contact(email, requester_email, ...)` | super-admin | Update fields |
+| `grant_permission(email, permission, requester_email)` | super-admin | Grant a permission |
 
 ## Python API (direct access)
 
