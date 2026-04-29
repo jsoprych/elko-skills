@@ -4,27 +4,42 @@
 
 ---
 
+## Quick install
+
+```bash
+git clone https://github.com/jsoprych/elko-skills.git
+cd elko-skills
+./install.sh threads
+```
+
+See [`docs/platforms/`](../docs/platforms/) for platform-specific setup.
+
+---
+
 ## Database
 
-- **Path:** `/opt/data/elko-skills/threads/threads.db`
+- **Path:** `/opt/data/elko-skills/threads/threads.db` (default)
 - **Env override:** `ELKO_THREADS_DB`
 - **Tables:** `threads`, `messages`
-- **Schema:** `elko-skills/threads/schema.sql`
+- **Schema:** `schema.sql`
 
-## Key functions (threads.py)
+## Key functions
 
 ### Capture
 
 ```python
-# Capture an incoming message (creates thread or appends)
 capture(
     channel="email",
-    subject="Re: AI World Update",
-    body="Latest findings on DeepSeek...",
+    topic="AI-World-Daily",
+    msg={
+        "from_addr": "john@elko.ai",
+        "from_name": "John",
+        "subject": "Re: Today's findings",
+        "body_preview": "The DeepSeek API pricing changed...",
+        "direction": "inbound",
+        "sent_at": "2026-04-28T14:00:00Z",
+    },
     participants=["john@elko.ai", "pat@example.com"],
-    message_id="<abc123@mail.gmail.com>",
-    in_reply_to="<prev@mail.gmail.com>",   # links to parent
-    tags=["ai", "research"],
 )
 
 # Returns {"thread_id": 7, "message_id": 42, "is_new_thread": False}
@@ -33,26 +48,26 @@ capture(
 ### Retrieve
 
 ```python
-get_thread(7)                    # Thread + all messages
-get_message(42)                  # Single message
-search("DeepSeek")               # Full-text across body + subject
-list_recent(limit=10)            # Most recent threads
-list_by_tag("ai")                # Threads with a specific tag
-list_by_participant("pat@ex.com") # Threads involving a person
+active(limit=10)                         # Active threads, newest first
+context("AI-World-Daily")                # Full thread + messages
+context("AI-World-Daily", channel="telegram")  # Filter by channel
+recent(limit=5)                          # Most recent activity across all threads
+all_by_status("active")                  # Filter by status
 ```
 
 ### Tag management
 
 ```python
-add_tag(7, "urgent")
-remove_tag(7, "urgent")
-get_tags(7)                      # Returns ["urgent", "research"]
+tag("AI-World-Daily", "important")
+tag("AI-World-Daily", "research")
 ```
+
+Tags are stored as JSON arrays. Adding the same tag twice is idempotent.
 
 ### Stats
 
 ```python
-summary()                        # Total threads, total messages, by channel
+summary()     # Returns string: "8 threads (5 active), 34 messages"
 ```
 
 ## Common queries
@@ -62,43 +77,40 @@ summary()                        # Total threads, total messages, by channel
 SELECT channel, COUNT(*) FROM threads GROUP BY channel;
 
 -- Messages in the last 7 days
-SELECT t.subject, m.body, m.captured_at
+SELECT t.topic, m.body_preview, m.sent_at
 FROM messages m
 JOIN threads t ON m.thread_id = t.id
-WHERE m.captured_at > datetime('now', '-7 days')
-ORDER BY m.captured_at DESC;
-```
+WHERE m.sent_at > datetime('now', '-7 days')
+ORDER BY m.sent_at DESC;
 
-## Tag queries
-
-```sql
--- Threads tagged "urgent"
-SELECT t.id, t.subject, t.updated_at
+-- All threads tagged "important"
+SELECT t.id, t.topic, t.updated_at
 FROM threads t
-JOIN thread_tags tt ON t.id = tt.thread_id
-WHERE tt.tag = 'urgent'
+WHERE t.tags LIKE '%"important"%'
 ORDER BY t.updated_at DESC;
 
--- All tags with counts
-SELECT tt.tag, COUNT(*) as cnt
-FROM thread_tags tt
-GROUP BY tt.tag
-ORDER BY cnt DESC;
+-- Threads involving a specific participant
+SELECT * FROM threads
+WHERE participants LIKE '%john@elko.ai%';
 ```
 
 ## Thread lifecycle
 
-1. First message on a subject → new thread created
-2. `in_reply_to` header links it to parent → message appended
-3. Same subject, new channel → thread matched by subject (fuzzy)
-4. Threads auto-update `updated_at` on each new message
-5. Tags survive across messages (add/remove at thread level)
+1. First message on a `topic` + `channel` → new thread created
+2. Same topic + channel → message appended to existing thread
+3. Same topic, different channel → separate thread (independent)
+4. Participants merge on each capture (deduplicated)
+5. `message_count` auto-increments
+6. `last_activity` and `updated_at` auto-update
 
-## Channel identifiers
+## Testing
 
-| Channel | participant format |
-|---|---|
-| email | email address |
-| Telegram | `@username` or user_id |
-| GitHub | `owner/repo` or username |
-| General | any string — threads works standalone |
+```bash
+cd elko-skills/threads
+python3 -m pytest tests/ -v
+```
+
+## Security
+
+- All queries use `?` parameterized placeholders — no SQL injection
+- Threads has no permission model (capture-only); if you need write protection, add it at the transport layer

@@ -4,27 +4,39 @@
 
 ---
 
+## Quick install
+
+```bash
+git clone https://github.com/jsoprych/elko-skills.git
+cd elko-skills
+./install.sh contacts
+```
+
+See [`docs/platforms/`](../docs/platforms/) for platform-specific setup.
+
+---
+
 ## Database
 
-- **Path:** `/opt/data/elko-skills/contacts/contacts.db`
+- **Path:** `/opt/data/elko-skills/contacts/contacts.db` (default)
 - **Env override:** `ELKO_CONTACTS_DB`
-- **Tables:** `contacts`, `contact_phones`, `contact_platforms`, `contact_auth`
-- **Schema:** `elko-skills/contacts/schema.sql`
+- **Tables:** `contacts`, `contact_phones`, `contact_platforms`, `auth_rules`
+- **Schema:** `schema.sql`
 
-## Key functions (contacts.py)
+## Key functions
 
 ### Lookup
 
 ```python
-get_by_email("john@elko.ai")
-get_by_id(1)
-search("pat")               # partial match on name or email
-list_by_circle("family")
-list_all()                  # paginated with offset/limit
-list_admins()
+get_by_email("john@elko.ai")           # single contact + phones + platforms
+list_all()                              # all contacts
+find("pat")                             # fuzzy search (name or email)
+check_is_super_admin("john@elko.ai")    # True/False
+has_permission("diana@example.com", "email.send")
+get_permissions("diana@example.com")    # list of {permission, scope}
 ```
 
-### Write (requires `requester_email` — permission check)
+### Write (every function requires `requester_email` — permission check)
 
 ```python
 # Add a new contact (super-admin only)
@@ -34,31 +46,34 @@ add("Pat Smith", "pat@example.com",
     phone="+15551234567",
     platforms=[{"platform": "telegram", "id": "12345"}])
 
-# Update (super-admin or yourself)
-update(42, {"circle": "friends"}, requester_email="john@elko.ai")
+# Update fields (super-admin only)
+update("pat@example.com", "john@elko.ai",
+       circle="work", name="Pat Gibson")
 
-# Change circle (contact-manager or yourself)
-update_circle(42, "work", requester_email="john@elko.ai")
+# Grant permission (super-admin only)
+grant("pat@example.com", "email.send",
+      scope="*", requester_email="john@elko.ai")
 ```
 
 ### Stats
 
 ```python
-summary()     # Returns dict: total contacts, by circle, by role
+summary()     # Returns string: "5 contacts (1 admin, 2 family)"
 ```
 
 ## Common queries
 
 ```sql
 -- All contacts with phone numbers
-SELECT c.name, c.email, cp.phone
+SELECT c.name, c.email, cp.number
 FROM contacts c
 JOIN contact_phones cp ON c.id = cp.contact_id;
 
 -- All super-admins
-SELECT * FROM contacts c
-JOIN contact_auth ca ON c.id = ca.contact_id
-WHERE ca.user_role = 'super-admin';
+SELECT name, email FROM contacts WHERE role = 'super-admin';
+
+-- Contacts in a specific circle
+SELECT name, email FROM contacts WHERE circle = 'family';
 ```
 
 ## Permission levels
@@ -70,10 +85,25 @@ WHERE ca.user_role = 'super-admin';
 | viewer | — | — | — | — |
 | contact | — | self only | — | — |
 
+## Testing
+
+```bash
+cd elko-skills/contacts
+python3 -m pytest tests/ -v
+```
+
 ## Errors
 
 | Error | Cause |
 |---|---|
-| `Permission denied: only super-admin can add contacts` | `requester_email` not in auth table with sufficient role |
-| `Contact already exists` | Email already in DB |
-| `Contact not found` | ID or email doesn't match any record |
+| `Permission denied. ... is not super-admin.` | `requester_email` not in contacts with `role='super-admin'` |
+| `Contact {email} already exists.` | Email already in DB |
+| `Contact {email} not found.` | Email doesn't match any record |
+| `No valid columns to update. Allowed: ...` | kwargs contained only invalid column names |
+
+## Security
+
+- All queries use `?` parameterized placeholders — no SQL injection
+- Column names validated against whitelist in `safe_update()`
+- Every write checks `requester_email` is a super-admin first
+- 5 dedicated injection-resistance tests
