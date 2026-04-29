@@ -1,118 +1,177 @@
 # elko-skills
 
-**Database-backed, self-initializing structured skills for AI agents.**
+**Persistent, structured skills for AI agents — available as MCP servers.**
 
-An elko-skill is a reusable building block: one Python module wrapping one SQLite database, registered in a global directory, and discoverable at runtime. Every elko-skill is self-contained — create a DB, ship the schema, import the module, call the functions.
+AI agents have no memory between sessions. elko-skills fix that: each skill is a Python module wrapping a SQLite database, exposed as an MCP server so any agent can use it as native tools.
 
 ```
-elko-skill = Python module + SQLite DB + registry entry
+elko-skill = MCP server + Python module + SQLite DB
 ```
 
 ---
 
-## Quick start
+## Install (any agent, any platform)
 
 ```bash
-# One command, any platform
+# Contacts
+uvx elko-contacts          # or: pip install elko-contacts
+
+# Threads
+uvx elko-threads           # or: pip install elko-threads
+```
+
+Add to your agent's MCP config:
+
+```json
+{
+  "mcpServers": {
+    "elko-contacts": { "command": "uvx", "args": ["elko-contacts"] },
+    "elko-threads":  { "command": "uvx", "args": ["elko-threads"] }
+  }
+}
+```
+
+Or auto-configure all detected platforms in one command:
+
+```bash
 git clone https://github.com/jsoprych/elko-skills.git
 cd elko-skills
-./install.sh contacts          # interactive
-./install.sh threads           # interactive
+python3 install_mcp.py contacts    # detects Claude Desktop, Claude Code, Cursor, Windsurf, Zed
+python3 install_mcp.py threads
+python3 install_mcp.py all         # install everything
+python3 install_mcp.py contacts --sandbox   # isolated DB, zero footprint, easy purge
+python3 install_mcp.py --list-platforms     # see what's detected
 ```
 
-Or platform-specific:
+---
 
-| Platform | Install | Import |
+## Platform support
+
+| Platform | Install | Config location |
 |---|---|---|
-| **Hermes** | `./install.sh contacts` | `from contacts import contacts as hs` |
-| **Claude Code** | Add to CLAUDE.md | `python3 contacts/contacts.py` |
-| **Codex CLI** | Add to `.codex/config.yaml` | `import contacts` |
-| **OpenClaw** | `pip install -e .` | `import contacts` |
-| **OpenCode** | Add to `.opencode/skills.yaml` | skill binding |
+| **Claude Desktop** | `install_mcp.py` or manual | `claude_desktop_config.json` |
+| **Claude Code** | `install_mcp.py` or manual | `~/.claude/settings.json` |
+| **Cursor** | `install_mcp.py` or manual | `~/.cursor/mcp.json` |
+| **Windsurf** | `install_mcp.py` or manual | `~/.codeium/windsurf/mcp_config.json` |
+| **Zed** | `install_mcp.py` or manual | `~/.config/zed/settings.json` |
+| **VS Code** | snippet (see install_mcp.py) | `.vscode/mcp.json` |
+| **Hermes** | `./install.sh contacts` | bootstrap registry |
+| **OpenCode** | `./install.sh contacts` | `.opencode/config` |
+| **Codex CLI** | `./install.sh contacts` | `.codex/config.yaml` |
 
-See [`docs/platforms/`](docs/platforms/) for full setup guides.
-
----
-
-## Platform matrix
-
-| Feature | Hermes | Claude Code | Codex CLI | OpenClaw | OpenCode |
-|---|---|---|---|---|---|
-| Python import | ✅ native | ✅ CLAUDE.md | ✅ config | ✅ native | ✅ config |
-| Auto-registry | ✅ | — | — | — | — |
-| Bootstrap card | ✅ | — | — | — | — |
-| ACP bridge | — | ✅ | — | — | — |
-| Tool binding | — | ✅ | ✅ | ✅ | ✅ |
-| SQL injection defense | ✅ all | ✅ all | ✅ all | ✅ all | ✅ all |
-| Permission model | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Tests | 70 ✓ | 70 ✓ | 70 ✓ | 70 ✓ | 70 ✓ |
+See [`docs/platforms/`](docs/platforms/) for full per-platform guides.
 
 ---
 
-## Why elko-skills?
+## Skills
 
-AI agents (Hermes, Claude Code, Codex, OpenClaw, OpenCode) have no built-in user database, contact system, or permissions model. They operate per-session with no persistent state. elko-skills fill that gap — they give agents:
-
-- **Persistent state** — survive across restarts, sessions, and agents
-- **Structured access** — Python functions wrap raw SQL; the function is the API
-- **Permissions** — write operations check authorization before touching data
-- **Discoverability** — the registry tells every agent what data is available
-- **Marketplace-ready** — ship module + init script; data stays local
-
----
-
-## Built skills
-
-| Skill | What | Tests | Docs | Platform setup |
+| Skill | PyPI | What | Tools | Tests |
 |---|---|---|---|---|
-| **hs-contacts** | People, permissions, platforms | 41 ✓ | [howto](contacts/docs/howto.md) | [all](docs/platforms/) |
-| **hs-threads** | Cross-channel conversation tracking | 29 ✓ | [howto](threads/docs/howto.md) | [all](docs/platforms/) |
-| **elko_util** | Core library — ElkoSkill, safe_update, permission checks | — | docstrings | shared |
+| **elko-contacts** | `pip install elko-contacts` | People, permissions, platforms | 9 | 41 ✓ |
+| **elko-threads** | `pip install elko-threads` | Cross-channel conversation tracking | 7 | 29 ✓ |
+| **elko_util** | `pip install elko-util` | Core library (shared dependency) | — | — |
 
-### hs-contacts
+### elko-contacts tools
 
-```python
-from contacts import contacts as hs
+```
+list_all          → all contacts
+find(query)       → fuzzy search by name or email
+get(email)        → one contact + phones + platforms
+get_permissions   → auth rules for a contact
+check_is_super_admin → role check
+summary           → "12 contacts (1 admin, 5 family)"
 
-# Reads (no auth needed)
-hs.list_all()                                              # all contacts
-hs.get_by_email('john@elko.ai')                            # one contact + phones + platforms
-hs.find('john')                                            # fuzzy search
-hs.check_is_super_admin('john@elko.ai')                    # permission check
-hs.get_permissions('diana@example.com')                    # their auth rules
-
-# Writes (every one checks requester_email)
-hs.add('Pat Smith', 'pat@example.com', requester_email='john@elko.ai')
-hs.update('pat@example.com', 'john@elko.ai', circle='work')
-hs.grant('pat@example.com', 'email.send', requester_email='john@elko.ai')
+add(name, email, requester_email)   → requires super-admin
+update(email, requester_email, ...) → requires super-admin
+grant(email, permission, ...)       → requires super-admin
 ```
 
-### hs-threads
+### elko-threads tools
+
+```
+active(limit)         → active threads, newest first
+all_threads(status)   → all threads, filterable
+context(topic)        → full message history for a thread
+recent(limit)         → latest activity across all threads
+summary               → "8 threads (5 active), 34 messages"
+
+capture(topic, channel, from_addr, ...)  → add a message; creates thread if new
+tag(topic, tag)                          → tag a thread
+```
+
+---
+
+## Direct Python access (Hermes / advanced)
+
+Skills are also plain Python modules — import directly if your agent runs Python:
 
 ```python
-from threads import threads as t
+from contacts import contacts
 
-t.active()                                                 # active threads, newest first
-t.capture('AI-World-Daily', 'email', msg, participants=['john@elko.ai'])
-t.context('AI-World-Daily')                                # full message history
-t.tag('AI-World-Daily', 'important')                       # tag for filtering
-t.summary()                                                # "8 threads (5 active), 34 messages"
+contacts.list_all()
+contacts.find('john')
+contacts.add('Pat Smith', 'pat@example.com', requester_email='john@elko.ai')
+contacts.update('pat@example.com', 'john@elko.ai', circle='work')
+contacts.grant('pat@example.com', 'email.send', requester_email='john@elko.ai')
 ```
+
+```python
+from threads import threads
+
+threads.active()
+threads.capture('AI-World-Daily', 'email', msg, participants=['john@elko.ai'])
+threads.context('AI-World-Daily')
+threads.tag('AI-World-Daily', 'important')
+threads.summary()
+```
+
+---
+
+## Security
+
+**Two-layer SQL injection defense — every skill, every write:**
+
+1. All values use `?` parameterized placeholders — never string-interpolated
+2. All column names validated against a whitelist — `safe_update()` rejects unknown columns
+
+```python
+# Stored literally, never executed:
+dangerous = "Robert'); DROP TABLE contacts; --"
+contacts.update('alice@example.com', 'admin@elko.ai', name=dangerous)
+# → table still exists; name stored verbatim
+```
+
+Every write function checks `requester_email` before touching data. Reads need no auth.
+
+---
+
+## Cross-skill references
+
+Skills are independent — each has its own SQLite DB. They can coexist or run standalone.
+Cross-skill references use **email as the universal natural key**, never integer IDs:
+
+```
+elko-threads.participants  →  ["john@elko.ai", "pat@example.com"]  (not contact IDs)
+elko-audit.actor_email     →  "john@elko.ai"
+elko-tasks.assignee_email  →  "pat@example.com"
+```
+
+No cross-DB foreign key enforcement — skills compose without hard dependencies.
 
 ---
 
 ## The pattern: functions are the API
+
+Every elko-skill follows the same structure:
 
 ```python
 from elko_util import ElkoSkill, safe_update
 
 _skill = ElkoSkill(name='contacts', env_var='ELKO_CONTACTS_DB', ...)
 
-# Read —  one line via the core library
 def list_all():
     return _skill.query_all("SELECT ...")
 
-# Write — permission check, then safe_update
 def update(email, requester_email, **kwargs):
     if not is_super_admin(conn, requester_email):
         return {"error": "Permission denied."}
@@ -120,108 +179,67 @@ def update(email, requester_email, **kwargs):
     conn.execute(sql, params)
 ```
 
-Key conventions:
-
 | Convention | Why |
 |---|---|
-| Every function returns dicts | Consistent interface, serializable |
-| Write functions check permissions first | Safety boundary — every mutation is guarded |
+| Every function returns dicts | Consistent, JSON-serializable |
+| Writes check permissions first | Every mutation is guarded |
 | `safe_update` validates column whitelist | SQL injection defense line 2 |
 | `?` placeholders for all values | SQL injection defense line 1 |
-| JSON columns for flexible fields | Capture anything; break out if queried relationally |
-| DB path overridable via `ELKO_{NAME}_DB` | Test with separate DBs, deploy with production |
+| DB path via `ELKO_{NAME}_DB` env var | Separate test/prod/sandbox DBs |
 
 ---
 
-## Security
+## Sandbox mode
 
-**Two-layer defense against SQL injection:**
+Zero-footprint evaluation — all DBs in `~/.elko-sandbox/`, real data untouched:
 
-1. **All values** go through `?` parameterized placeholders — never string-interpolated
-2. **All column names** validated against a whitelist — `safe_update()` accepts only known columns
-
-And 5 dedicated injection-resistance tests:
-
-```python
-# A name like this is stored literally, never executed:
-"Robert'); DROP TABLE contacts; --"
-hs.update('alice@example.com', 'admin@elko.ai', name=dangerous_name)
-# → contacts table still exists, name is stored verbatim
+```bash
+python3 install_mcp.py contacts --sandbox
+python3 install_mcp.py threads --sandbox
+# To purge everything: rm -rf ~/.elko-sandbox
 ```
-
-Every write function checks `requester_email` against the permissions table.
-Reads are safe by design — no auth needed.
-
----
-
-## Architecture
-
-```
-startup.py
-  └─► bootstrap.db        ← Identity + reflexes
-         └─► elko-registry.db    ← Pure directory (services table only)
-                ├─► elko-skills/contacts/    ← contacts.py + contacts.db
-                └─► elko-skills/threads/     ← threads.py + threads.db
-```
-
-**Three layers:**
-1. **Bootstrap** — Identity, registry pointer, and learned reflexes
-2. **Registry** — Pure directory. No data lives here.
-3. **Elko-skill** — The module. The schema. The functions. The data.
-
----
-
-## What ships vs. what stays
-
-| Ships (in repo) | Stays local |
-|---|---|
-| `contacts.py` | `contacts.db` (with real data) |
-| `init_contacts.py` | Any cached exports |
-| `docs/howto.md` | |
-| `tests/test_contacts.py` | |
-
-The init script creates a fresh DB on install. Real data is never packaged.
 
 ---
 
 ## Creating a new elko-skill
 
 ```bash
-cp -r template/ elko-skills/my-skill/
-cd elko-skills/my-skill/
-# Edit schema.sql, module.py, init.py
-# Set env var: export ELKO_MYSKILL_DB=/path/to/db
-# Init:        python3 init_myskill.py
-# Test:        python3 -m pytest tests/
-# Register:    python3 -c "..."  (see docs/platforms/hermes.md)
-# Ship:        git add, commit, push
+cp -r template/ my-skill/
+# Edit: schema.sql, module.py, init.py, mcp_server.py
+# Test:    python3 -m pytest my-skill/tests/
+# Package: edit my-skill/pyproject.toml
+# Ship:    python3 -m build && twine upload dist/*
 ```
 
-See [`template/`](template/), [`docs/howto-create-a-skill.md`](docs/howto-create-a-skill.md), and the [platform setup guides](docs/platforms/).
+See [`template/`](template/) and [`docs/howto-create-a-skill.md`](docs/howto-create-a-skill.md).
 
 ---
 
 ## Roadmap
 
 ### Built ✅
-- [x] **hs-contacts** — people, permissions, platforms (41 tests)
-- [x] **hs-threads** — cross-channel conversation tracking (29 tests)
+- [x] **elko-contacts** — people, permissions, platforms (41 tests)
+- [x] **elko-threads** — cross-channel conversation tracking (29 tests)
 - [x] **elko_util** — core library, safe SQL builders, ElkoSkill base class
-- [x] **Universal installer** — `install.sh` works on all 5 platforms
-- [x] **Platform setup docs** — Hermes, Claude Code, Codex CLI, OpenClaw, OpenCode
+- [x] **MCP servers** — `contacts/mcp_server.py`, `threads/mcp_server.py` (fastmcp)
+- [x] **PyPI packages** — `elko-contacts`, `elko-threads`, `elko-util`
+- [x] **install_mcp.py** — auto-configures Claude Desktop, Claude Code, Cursor, Windsurf, Zed
+- [x] **Sandbox mode** — isolated DBs, one-line purge
 - [x] **Template** — starter kit for new elko-skills
-- [x] **Registry** — elko-registry.db service directory
+- [x] **Platform guides** — Hermes, Claude Code, Codex CLI, OpenCode, Cursor, Windsurf, Zed
 
 ### Next 🔨
-- [ ] **hs-credentials** — API keys, tokens, secrets (encrypted at rest)
-- [ ] **hs-audit-log** — timestamped action records for all skills
-- [ ] **hs-email-threads** — Message-ID threading, inbox tracking
-- [ ] **hs-blog-pipeline** — draft → review → publish lifecycle
-- [ ] **hs-ai-world-kg** — AI industry knowledge graph as an elko-skill
+- [ ] **elko-credentials** — API keys, tokens, secrets (encrypted at rest)
+- [ ] **elko-audit** — timestamped action log across all skills
+- [ ] **elko-tasks** — persistent todos/tasks for agents
+- [ ] **elko-notes** — unstructured knowledge base
+- [ ] Smithery + PulseMCP marketplace listings
+- [ ] Read the Docs site
 
 ### Future 🚀
-- [ ] MCP server wrapper (same functions, MCP transport)
-- [ ] Smithery / PulseMCP marketplace packages
+- [ ] **elko-iam** — central permissions service (extract from per-skill)
+- [ ] **elko-projects** — long-running work tracking
+- [ ] HTTP transport mode for container deployments
 - [ ] elko-foundry architecture
 
 ---
@@ -230,40 +248,43 @@ See [`template/`](template/), [`docs/howto-create-a-skill.md`](docs/howto-create
 
 ```
 elko-skills/
-├── install.sh              ← Universal installer (all platforms)
+├── install_mcp.py          ← Auto-configure MCP for all detected platforms
+├── install.sh              ← Classic installer (Hermes, OpenCode, Codex)
 ├── elko_util.py            ← Core library: ElkoSkill, safe_update, is_super_admin
+├── pyproject.toml          ← elko-util PyPI package
 ├── README.md               ← You are here
-├── .gitignore
-├── run_tests.py
 ├── contacts/
 │   ├── contacts.py         ← Module (the API)
+│   ├── mcp_server.py       ← MCP server (uvx elko-contacts)
+│   ├── pyproject.toml      ← PyPI: elko-contacts
+│   ├── smithery.yaml       ← Smithery marketplace manifest
+│   ├── README.md           ← PyPI description
+│   ├── __init__.py
 │   ├── init_contacts.py    ← First-run DB creation
-│   ├── schema.sql          ← CREATE TABLE statements
-│   ├── docs/howto.md       ← Usage guide
-│   └── tests/test_contacts.py  ← 41 tests
-├── threads/
-│   ├── threads.py          ← Module (the API)
-│   ├── init_threads.py     ← First-run DB creation
-│   ├── schema.sql          ← CREATE TABLE statements
-│   ├── docs/howto.md       ← Usage guide
-│   └── tests/test_threads.py   ← 29 tests
-├── template/               ← Starter kit for new elko-skills
-│   ├── module.py
-│   ├── init.py
 │   ├── schema.sql
 │   ├── docs/howto.md
-│   └── tests/test_template.py
-├── docs/
-│   ├── README.md
-│   ├── howto-create-a-skill.md
-│   └── platforms/
-│       ├── README.md
-│       ├── hermes.md
-│       ├── claude-code.md
-│       ├── codex.md
-│       ├── openclaw.md
-│       └── opencode.md
-└── run_tests.py            ← One command to run all tests
+│   └── tests/
+├── threads/
+│   ├── threads.py
+│   ├── mcp_server.py       ← MCP server (uvx elko-threads)
+│   ├── pyproject.toml      ← PyPI: elko-threads
+│   ├── smithery.yaml       ← Smithery marketplace manifest
+│   ├── README.md           ← PyPI description
+│   ├── __init__.py
+│   ├── init_threads.py
+│   ├── schema.sql
+│   ├── docs/howto.md
+│   └── tests/
+├── template/               ← Starter kit for new elko-skills
+└── docs/
+    ├── howto-create-a-skill.md
+    └── platforms/
+        ├── claude-code.md
+        ├── cursor.md
+        ├── windsurf.md
+        ├── hermes.md
+        ├── opencode.md
+        └── codex.md
 ```
 
 ---

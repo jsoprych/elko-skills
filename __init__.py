@@ -13,6 +13,7 @@
 # The functions ARE the API, and the same API can later be served as an MCP server.
 # ============================================================
 
+"""
 1. BOOT CARD → tells me which elko-skills are registered and active
 2. REGISTRY QUERY → SELECT name, capability FROM services WHERE kind='elko-skill'
 3. import the module → call the functions
@@ -47,3 +48,4 @@ Export to other agents / marketplace:
   Real data stays local — never ships. Init script creates fresh DB on install.
   A future MCP server can wrap the same module. The functions stay the same;
   only the transport changes.
+"""

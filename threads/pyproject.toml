@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "elko-threads"
+version = "0.1.0"
+description = "Cross-channel conversation tracking for AI agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "John Soprych", email = "johnsoprych@gmail.com" }]
+keywords = ["mcp", "ai-agents", "threads", "conversations", "sqlite", "elko", "llm", "tools"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Database",
+]
+dependencies = ["fastmcp>=2.0"]
+
+[project.scripts]
+elko-threads = "threads.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/jsoprych/elko-skills"
+Repository = "https://github.com/jsoprych/elko-skills"
+Documentation = "https://github.com/jsoprych/elko-skills/tree/main/threads/docs"
+"Bug Tracker" = "https://github.com/jsoprych/elko-skills/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["threads"]
+
+# Bundle elko_util.py at site-packages root so `from elko_util import ...` works
+[tool.hatch.build.targets.wheel.force-include]
+"../elko_util.py" = "elko_util.py"

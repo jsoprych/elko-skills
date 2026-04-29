@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""elko-threads MCP server — exposes threads skill as MCP tools via stdio."""
+import sys
+import os
+
+# Add repo root for elko_util; remove threads/ from path so Python resolves
+# `threads` as the namespace package in repo root, not threads.py in this dir.
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path = [_root] + [p for p in sys.path if os.path.normpath(p) != os.path.normpath(_here)]
+
+from fastmcp import FastMCP
+from threads import threads
+
+mcp = FastMCP(
+    "elko-threads",
+    instructions="Cross-channel conversation tracking for AI agents. "
+                 "Captures messages from email, Telegram, GitHub, or any channel into persistent threads.",
+)
+
+
+# ── READ tools ─────────────────────────────────────────────
+
+@mcp.tool()
+def active(limit: int = 10) -> list:
+    """List active threads sorted by most recent activity."""
+    return threads.active(limit=limit)
+
+
+@mcp.tool()
+def all_threads(status: str = None, limit: int = 20) -> list:
+    """List all threads, optionally filtered by status (active, archived, etc.)."""
+    return threads.all_by_status(status=status, limit=limit)
+
+
+@mcp.tool()
+def context(topic: str, channel: str = None, limit: int = 50) -> dict:
+    """Get full message history for a thread by topic (and optional channel)."""
+    return threads.context(topic, channel=channel, limit=limit)
+
+
+@mcp.tool()
+def recent(limit: int = 5) -> list:
+    """Most recent activity across all threads."""
+    return threads.recent(limit=limit)
+
+
+@mcp.tool()
+def summary() -> str:
+    """Quick stats: total threads, active threads, and message count."""
+    return threads.summary()
+
+
+# ── WRITE tools ────────────────────────────────────────────
+
+@mcp.tool()
+def capture(
+    topic: str,
+    channel: str,
+    from_addr: str,
+    from_name: str = "",
+    subject: str = "",
+    body_preview: str = "",
+    direction: str = "inbound",
+    sent_at: str = None,
+    participants: list = None,
+) -> dict:
+    """Capture a message into a thread. Creates the thread if it doesn't exist.
+
+    channel: email, telegram, github, discord, etc.
+    direction: inbound or outbound
+    sent_at: ISO8601 timestamp (defaults to now)
+    participants: list of email addresses or names
+    """
+    msg = {
+        "from_addr": from_addr,
+        "from_name": from_name,
+        "subject": subject,
+        "body_preview": body_preview,
+        "direction": direction,
+    }
+    if sent_at:
+        msg["sent_at"] = sent_at
+    return threads.capture(topic, channel, msg, participants=participants)
+
+
+@mcp.tool()
+def tag(topic: str, tag: str) -> dict:
+    """Add a tag to a thread (e.g. 'important', 'design', 'follow-up')."""
+    return threads.tag(topic, tag)
+
+
+def main():
+    mcp.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,10 @@
+name: elko-threads
+description: Cross-channel conversation tracking for AI agents
+version: "0.1.0"
+homepage: https://github.com/jsoprych/elko-skills
+license: MIT
+startCommand:
+  type: stdio
+  command: uvx
+  args:
+    - elko-threads

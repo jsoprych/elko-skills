@@ -1,61 +1,134 @@
-# elko-skills on Claude Code (ACP)
+# elko-skills on Claude Code
 
-Claude Code connects via the Agent Communication Protocol (ACP) bridge. The elko-skill runs as a Python subprocess with a stdio transport.
-
----
-
-## One-liner
-
-```bash
-./install.sh contacts
-```
-
-The installer detects `claude` in PATH and prints the right CLAUDE.md entry.
+Claude Code supports MCP servers natively. The recommended setup is MCP — skills appear as first-class tools in every session.
 
 ---
 
-## Manual setup
+## MCP setup (recommended)
 
-### 1. Clone
+### Option A — Auto-configure
 
 ```bash
-git clone https://github.com/jsoprych/elko-skills.git ~/.elko-skills
+python3 install_mcp.py contacts
+python3 install_mcp.py threads
 ```
 
-### 2. Add to CLAUDE.md
+Detects Claude Code and writes to `~/.claude/settings.json` automatically.
+
+### Option B — One-liner via Claude Code CLI
+
+```bash
+claude mcp add elko-contacts uvx elko-contacts
+claude mcp add elko-threads  uvx elko-threads
+```
+
+### Option C — Manual
+
+Edit `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "elko-contacts": {
+      "command": "uvx",
+      "args": ["elko-contacts"]
+    },
+    "elko-threads": {
+      "command": "uvx",
+      "args": ["elko-threads"]
+    }
+  }
+}
+```
+
+Or with a local clone (before PyPI publish):
+
+```json
+{
+  "mcpServers": {
+    "elko-contacts": {
+      "command": "python3",
+      "args": ["~/.elko-skills/contacts/mcp_server.py"]
+    }
+  }
+}
+```
+
+---
+
+## Sandbox install (safe evaluation)
+
+```bash
+python3 install_mcp.py contacts --sandbox
+python3 install_mcp.py threads  --sandbox
+```
+
+All DBs go to `~/.elko-sandbox/`. Purge everything: `rm -rf ~/.elko-sandbox`.
+
+---
+
+## Verify
+
+```bash
+claude mcp list                  # should show elko-contacts, elko-threads
+claude mcp get elko-contacts     # shows tools list
+```
+
+Or test the server directly:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+  | python3 ~/.elko-skills/contacts/mcp_server.py 2>/dev/null
+```
+
+---
+
+## Tools available in Claude Code
+
+Once configured, agents see these as native tools:
+
+**elko-contacts:** `list_all`, `find`, `get`, `get_permissions`, `check_is_super_admin`, `summary`, `add`, `update`, `grant`
+
+**elko-threads:** `active`, `all_threads`, `context`, `recent`, `summary`, `capture`, `tag`
+
+---
+
+## CLAUDE.md snippet (optional context)
+
+Add to your project's `CLAUDE.md` so Claude knows the skills are available:
 
 ```markdown
-## elko-skill: contacts
+## Persistent skills available
 
-People database with permissions. Import in Python:
+- **elko-contacts** MCP: contact list with permissions. Use `list_all`, `find`, `get`, `add`.
+- **elko-threads** MCP: conversation tracking. Use `active`, `capture`, `context`.
 
-```python
-import sys
-sys.path.insert(0, '~/.elko-skills/contacts')
-from contacts import contacts as hs
-
-# List all contacts
-hs.list_all()
-# → [{'name': 'John', 'email': 'john@elko.ai', ...}]
-
-# Find someone
-hs.find('john')
-# → [{'name': 'John Soprych', 'email': 'john@elko.ai', ...}]
-
-# Add a contact (requires super-admin)
-hs.add('Alice', 'alice@example.com', requester_email='john@elko.ai')
-# → {'success': True, 'id': 42, ...}
+Writes require `requester_email` of a super-admin contact.
 ```
 
-## ACP bridge
+---
 
-For direct actor-to-actor communication:
+## Env var configuration
+
+Override DB locations (useful for project-specific data):
 
 ```bash
-claude --acp --stdio --skill ~/.elko-skills/contacts/contacts.py
+export ELKO_CONTACTS_DB=/path/to/contacts.db
+export ELKO_THREADS_DB=/path/to/threads.db
 ```
 
-This exposes every function as an ACP tool:
-- `list_all()` → tool
-- `find(query)` → tool with string parameter
-- `add(name, email, requester_email)` → tool with 3 string parameters
+Or set in the MCP config:
+
+```json
+{
+  "mcpServers": {
+    "elko-contacts": {
+      "command": "uvx",
+      "args": ["elko-contacts"],
+      "env": {
+        "ELKO_CONTACTS_DB": "/path/to/contacts.db"
+      }
+    }
+  }
+}
+```
