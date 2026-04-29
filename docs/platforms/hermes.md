@@ -6,32 +6,58 @@ Hermes is the native platform. Two integration paths: **MCP server** (recommende
 
 ## MCP setup (recommended)
 
-Same as any other platform — auto-detected by `install_mcp.py`:
+Each skill runs as an independent Docker container over stdio — the same pattern as `elko-market-mcp` and `elko-news-mcp`.
 
-```bash
-python3 install_mcp.py contacts
-python3 install_mcp.py threads
-```
+Add to your Hermes MCP config (`~/.hermes/config.yaml` or equivalent):
 
-Or add to your Hermes MCP config manually:
+```yaml
+mcpServers:
+  elko-contacts:
+    command: docker
+    args:
+      - run
+      - -i
+      - --rm
+      - -e
+      - ELKO_SUPER_ADMIN_EMAIL
+      - -v
+      - elko-contacts-data:/data
+      - ghcr.io/jsoprych/elko-contacts:latest
+    env:
+      ELKO_SUPER_ADMIN_EMAIL: "you@example.com"
 
-```json
-{
-  "mcpServers": {
-    "elko-contacts": {
-      "command": "uvx",
-      "args": ["elko-contacts"],
-      "env": { "ELKO_SUPER_ADMIN_EMAIL": "you@example.com" }
-    },
-    "elko-threads": {
-      "command": "uvx",
-      "args": ["elko-threads"]
-    }
-  }
-}
+  elko-threads:
+    command: docker
+    args:
+      - run
+      - -i
+      - --rm
+      - -v
+      - elko-threads-data:/data
+      - ghcr.io/jsoprych/elko-threads:latest
 ```
 
 `ELKO_SUPER_ADMIN_EMAIL` seeds the first super-admin on startup. No manual DB init needed.
+
+Data persists in named Docker volumes (`elko-contacts-data`, `elko-threads-data`) across container restarts.
+
+### Pre-release: local build
+
+Until images are published to GHCR, build locally from the repo:
+
+```bash
+git clone https://github.com/jsoprych/elko-skills.git
+cd elko-skills
+docker build -f contacts/Dockerfile -t ghcr.io/jsoprych/elko-contacts:latest .
+docker build -f threads/Dockerfile  -t ghcr.io/jsoprych/elko-threads:latest  .
+```
+
+### Test the containers
+
+```bash
+printf '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}\n' \
+  | docker run -i --rm ghcr.io/jsoprych/elko-contacts:latest 2>/dev/null
+```
 
 ---
 

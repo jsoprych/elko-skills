@@ -1,0 +1,34 @@
+# Databases — never ship real data
+*.db
+*.db-shm
+*.db-wal
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+.eggs/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Dev environment
+.env
+.venv/
+venv/
+.elko-sandbox/
+
+# Docs & CI (not needed in image)
+docs/
+PUBLISHING.md
+*.md
+!contacts/README.md
+!threads/README.md
+
+# Git
+.git/
+.gitignore
