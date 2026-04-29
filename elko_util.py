@@ -19,7 +19,7 @@ Design:
     - Version tracking: each DB has a meta table with version and installation_id.
     - Profile support: dev/test/prod isolation via profiles.yaml.
 """
-import os, json, sqlite3, yaml
+import os, json, sqlite3
 
 
 # ═══════════════════════════════════════════════════════════
@@ -66,13 +66,13 @@ def load_profile(profile_name=None):
         dict with profile config, or empty dict if no profile found.
     """
     name = profile_name or os.environ.get('ELKO_PROFILE', 'prod')
-    profiles_path = os.path.join(_elko_skill_dir(), 'profiles.yaml')
+    profiles_path = os.path.join(_elko_skill_dir(), 'profiles.json')
 
     if not os.path.exists(profiles_path):
         return {'name': name, 'skills': {}}
 
     with open(profiles_path) as f:
-        data = yaml.safe_load(f) or {}
+        data = json.load(f) or {}
 
     profiles = data.get('profiles', {})
     return profiles.get(name, {'name': name, 'skills': {}})

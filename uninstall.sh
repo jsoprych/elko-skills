@@ -74,7 +74,7 @@ if [ -n "${REMOVE_ALL:-}" ]; then
     # Remove databases
     find "$UNINSTALL_DIR" -name "*.db" -exec rm -v {} \;
     # Remove profiles
-    rm -f "$UNINSTALL_DIR/profiles.yaml"
+    rm -f "$UNINSTALL_DIR/profiles.json"
     # Remove source
     rm -rf "$UNINSTALL_DIR"
 
@@ -122,15 +122,15 @@ fi
 
 # ── Delete database ────────────────────────────────────────
 if [ -z "${KEEP_DB:-}" ]; then
-    # Determine DB path from profiles.yaml or naming convention
+    # Determine DB path from profiles.json or naming convention
     DB_PATHS=()
-    PROFILES_FILE="$UNINSTALL_DIR/profiles.yaml"
+    PROFILES_FILE="$UNINSTALL_DIR/profiles.json"
     if [ -f "$PROFILES_FILE" ]; then
         # Extract from profile
         PYTHON_OUT=$(python3 -c "
-import yaml, os
+import os, json
 with open('$PROFILES_FILE') as f:
-    data = yaml.safe_load(f) or {}
+    data = json.load(f) or {}
 profiles = data.get('profiles', {})
 suffix = '$SUFFIX_OR_PROFILE'
 for pname, pdata in profiles.items():
@@ -158,19 +158,19 @@ else
     echo "  ∼ Keeping database (--keep-db)"
 fi
 
-# ── Update profiles.yaml ───────────────────────────────────
-PROFILES_FILE="$UNINSTALL_DIR/profiles.yaml"
+# ── Update profiles.json ───────────────────────────────────
+PROFILES_FILE="$UNINSTALL_DIR/profiles.json"
 if [ -f "$PROFILES_FILE" ]; then
-    echo "⟐ Updating profiles.yaml..."
+    echo "⟐ Updating profiles.json..."
     python3 -c "
-import yaml, os
+import os, json
 
 profiles_path = '$PROFILES_FILE'
 suffix = '$SUFFIX_OR_PROFILE'
 skill_name = '$SKILL_NAME'
 
 with open(profiles_path) as f:
-    data = yaml.safe_load(f) or {}
+    data = json.load(f) or {}
 
 profiles = data.get('profiles', {})
 for pname in list(profiles.keys()):
@@ -183,9 +183,9 @@ for pname in list(profiles.keys()):
                 del profiles[pname]
 
 with open(profiles_path, 'w') as f:
-    yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-print('✓ profiles.yaml updated')
-" 2>/dev/null || echo "∼ Could not update profiles.yaml"
+    json.dump(data, f, indent=2)
+print('✓ profiles.json updated')
+" 2>/dev/null || echo "∼ Could not update profiles.json"
 fi
 
 # ── Unregister from Hermes ─────────────────────────────────

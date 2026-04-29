@@ -1,0 +1,45 @@
+{
+  "profiles": {
+    "prod": {
+      "skills": {
+        "contacts": {
+          "source": "~/.elko-skills/releases/v0.1.0/contacts",
+          "db": "/opt/data/elko-skills/contacts/contacts.db",
+          "registry_name": "hs-contacts"
+        },
+        "threads": {
+          "source": "~/.elko-skills/releases/v0.1.0/threads",
+          "db": "/opt/data/elko-skills/threads/threads.db",
+          "registry_name": "hs-threads"
+        }
+      }
+    },
+    "dev": {
+      "skills": {
+        "contacts": {
+          "source": "/home/user/code/elko-skills/contacts",
+          "db": "/tmp/elko-contacts-dev.db",
+          "registry_name": "hs-contacts-dev"
+        },
+        "threads": {
+          "source": "/home/user/code/elko-skills/threads",
+          "db": "/tmp/elko-threads-dev.db",
+          "registry_name": "hs-threads-dev"
+        }
+      }
+    },
+    "test": {
+      "skills": {
+        "contacts": {
+          "db": "/tmp/elko-contacts-test.db",
+          "registry_name": "hs-contacts-test"
+        },
+        "threads": {
+          "db": "/tmp/elko-threads-test.db",
+          "registry_name": "hs-threads-test"
+        }
+      }
+    }
+  },
+  "active_profile": "prod"
+}

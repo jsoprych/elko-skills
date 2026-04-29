@@ -20,7 +20,7 @@
 #   2. Runs init_<skill>.py to create the DB + schema
 #   3. Prompts for super-admin (contacts only, first run)
 #   4. Registers in elko-registry.db (if Hermes)
-#   5. Writes/updates profiles.yaml
+#   5. Writes/updates profiles.json
 #   6. Prints platform-specific integration instructions
 # ============================================================
 
@@ -194,14 +194,14 @@ else
     echo "∼ No init script (schema auto-created on first use)"
 fi
 
-# ── Step 5: Update profiles.yaml ───────────────────────────
-PROFILES_FILE="$DEST_DIR/profiles.yaml"
+# ── Step 5: Update profiles.json ───────────────────────────
+PROFILES_FILE="$DEST_DIR/profiles.json"
 if [ -n "$PROFILE" ]; then
     echo "⟐ Updating profile '$PROFILE' in $PROFILES_FILE..."
 
-    # Build YAML snippet — uses Python to parse/write YAML safely
+    # Build JSON — uses Python to parse/write safely
     python3 -c "
-import os, yaml
+import os, json
 
 profile_name = '$PROFILE'
 skill_name = '$SKILL_NAME'
@@ -213,11 +213,11 @@ profiles_path = '$PROFILES_FILE'
 existing = {}
 if os.path.exists(profiles_path):
     with open(profiles_path) as f:
-        existing = yaml.safe_load(f) or {}
+        existing = json.load(f) or {}
 
 profiles = existing.setdefault('profiles', {})
-profile = profiles.setdefault(profile_name, {})
-skills = profile.setdefault('skills', {})
+profile_ = profiles.setdefault(profile_name, {})
+skills = profile_.setdefault('skills', {})
 skills[skill_name] = {
     'source': '$FROM_PATH' if '$FROM_PATH' else skill_dir,
     'db': db_path,
@@ -228,10 +228,10 @@ if 'active_profile' not in existing:
     existing['active_profile'] = 'prod'
 
 with open(profiles_path, 'w') as f:
-    yaml.dump(existing, f, default_flow_style=False, sort_keys=False)
+    json.dump(existing, f, indent=2)
 
 print(f'✓ Profile \"{profile_name}\" updated')
-" 2>/dev/null || echo "∼ Could not update profiles.yaml"
+" 2>/dev/null || echo "∼ Could not update profiles.json"
 fi
 
 # ── Step 6: Register in Hermes registry (if available) ────
