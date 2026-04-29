@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """elko-contacts MCP server — exposes contacts skill as MCP tools via stdio."""
+import re
 import sys
 import os
+from pathlib import Path
 
 # Add repo root for elko_util; remove contacts/ from path so Python resolves
 # `contacts` as the namespace package in repo root, not contacts.py in this dir.
@@ -12,8 +14,15 @@ sys.path = [_root] + [p for p in sys.path if os.path.normpath(p) != os.path.norm
 from fastmcp import FastMCP
 from contacts import contacts
 
+_VERSION = re.search(
+    r'^version\s*=\s*"([^"]+)"',
+    (Path(__file__).parent / "pyproject.toml").read_text(),
+    re.MULTILINE,
+).group(1)
+
 mcp = FastMCP(
     "elko-contacts",
+    version=_VERSION,
     instructions="Persistent contact list with permissions for AI agents. "
                  "Reads are open; writes require requester_email of a super-admin. "
                  "Call contacts_summary first to confirm the skill is active.",
@@ -57,6 +66,12 @@ def is_super_admin(email: str) -> bool:
 def contacts_summary() -> str:
     """Quick stats: total contacts with admin and family counts."""
     return contacts.summary()
+
+
+@mcp.tool()
+def skill_version() -> str:
+    """Returns the elko-contacts MCP server version."""
+    return _VERSION
 
 
 # ── WRITE tools (all require requester_email of a super-admin) ─

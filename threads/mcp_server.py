@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """elko-threads MCP server — exposes threads skill as MCP tools via stdio."""
+import re
 import sys
 import os
+from pathlib import Path
 
 # Add repo root for elko_util; remove threads/ from path so Python resolves
 # `threads` as the namespace package in repo root, not threads.py in this dir.
@@ -12,8 +14,15 @@ sys.path = [_root] + [p for p in sys.path if os.path.normpath(p) != os.path.norm
 from fastmcp import FastMCP
 from threads import threads
 
+_VERSION = re.search(
+    r'^version\s*=\s*"([^"]+)"',
+    (Path(__file__).parent / "pyproject.toml").read_text(),
+    re.MULTILINE,
+).group(1)
+
 mcp = FastMCP(
     "elko-threads",
+    version=_VERSION,
     instructions="Cross-channel conversation tracking for AI agents. "
                  "Captures messages from email, Telegram, GitHub, or any channel into persistent threads. "
                  "Call threads_summary first to confirm the skill is active.",
@@ -50,6 +59,12 @@ def recent_threads(limit: int = 5) -> list:
 def threads_summary() -> str:
     """Quick stats: total threads, active threads, and message count."""
     return threads.summary()
+
+
+@mcp.tool()
+def skill_version() -> str:
+    """Returns the elko-threads MCP server version."""
+    return _VERSION
 
 
 # ── WRITE tools ────────────────────────────────────────────
