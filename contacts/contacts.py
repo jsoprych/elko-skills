@@ -326,6 +326,33 @@ def is_super_admin_local(conn, email):
 
 
 # ═══════════════════════════════════════════════════════════
+# BOOTSTRAP
+# ═══════════════════════════════════════════════════════════
+
+def bootstrap(admin_email):
+    """Seed a super-admin on first run. No-op if contacts already exist.
+
+    Called automatically when ELKO_SUPER_ADMIN_EMAIL is set at MCP server startup.
+    Safe to call repeatedly — checks for existing contacts first.
+    """
+    conn = _skill.row_conn()
+    count = conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
+    if count > 0:
+        conn.close()
+        return {"bootstrapped": False, "reason": "contacts already exist"}
+
+    name = admin_email.split('@')[0].replace('.', ' ').replace('_', ' ').title()
+    conn.execute(
+        "INSERT INTO contacts (name, email, role, circle, discretion, metadata) "
+        "VALUES (?, ?, 'super-admin', 'admin', 'private', '{}')",
+        (name, admin_email)
+    )
+    conn.commit()
+    conn.close()
+    return {"bootstrapped": True, "admin_email": admin_email, "name": name}
+
+
+# ═══════════════════════════════════════════════════════════
 # UTILITY
 # ═══════════════════════════════════════════════════════════
 

@@ -3,8 +3,22 @@ description: Cross-channel conversation tracking for AI agents
 version: "0.1.0"
 homepage: https://github.com/jsoprych/elko-skills
 license: MIT
+
 startCommand:
   type: stdio
   command: uvx
   args:
     - elko-threads
+  env:
+    ELKO_THREADS_DB: "{{config.threadsDb}}"
+
+configSchema:
+  type: object
+  required: []
+  properties:
+    threadsDb:
+      type: string
+      description: >
+        Custom path for the threads SQLite database.
+        Defaults to threads/threads.db relative to the installed package.
+        Use an absolute path for a persistent location across updates.

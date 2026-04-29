@@ -25,8 +25,12 @@ Add to your agent's MCP config:
 ```json
 {
   "mcpServers": {
-    "elko-contacts": { "command": "uvx", "args": ["elko-contacts"] },
-    "elko-threads":  { "command": "uvx", "args": ["elko-threads"] }
+    "elko-contacts": {
+      "command": "uvx",
+      "args": ["elko-contacts"],
+      "env": { "ELKO_SUPER_ADMIN_EMAIL": "you@example.com" }
+    },
+    "elko-threads": { "command": "uvx", "args": ["elko-threads"] }
   }
 }
 ```
@@ -74,29 +78,29 @@ See [`docs/platforms/`](docs/platforms/) for full per-platform guides.
 ### elko-contacts tools
 
 ```
-list_all          → all contacts
-find(query)       → fuzzy search by name or email
-get(email)        → one contact + phones + platforms
-get_permissions   → auth rules for a contact
-check_is_super_admin → role check
-summary           → "12 contacts (1 admin, 5 family)"
+list_contacts                              → all contacts
+find_contact(query)                        → fuzzy search by name or email
+get_contact(email)                         → one contact + phones + platforms
+contact_permissions(email)                 → auth rules for a contact
+is_super_admin(email)                      → role check
+contacts_summary                           → "12 contacts (1 admin, 5 family)"
 
-add(name, email, requester_email)   → requires super-admin
-update(email, requester_email, ...) → requires super-admin
-grant(email, permission, ...)       → requires super-admin
+add_contact(name, email, requester_email)        → requires super-admin
+update_contact(email, requester_email, ...)      → requires super-admin
+grant_permission(email, permission, ...)         → requires super-admin
 ```
 
 ### elko-threads tools
 
 ```
-active(limit)         → active threads, newest first
-all_threads(status)   → all threads, filterable
-context(topic)        → full message history for a thread
-recent(limit)         → latest activity across all threads
-summary               → "8 threads (5 active), 34 messages"
+active_threads(limit)        → active threads, newest first
+list_threads(status)         → all threads, filterable
+thread_context(topic)        → full message history for a thread
+recent_threads(limit)        → latest activity across all threads
+threads_summary              → "8 threads (5 active), 34 messages"
 
-capture(topic, channel, from_addr, ...)  → add a message; creates thread if new
-tag(topic, tag)                          → tag a thread
+capture_message(topic, channel, from_addr, ...)  → add a message; creates thread if new
+tag_thread(topic, tag)                           → tag a thread
 ```
 
 ---

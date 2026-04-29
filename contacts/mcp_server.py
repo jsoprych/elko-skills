@@ -15,45 +15,46 @@ from contacts import contacts
 mcp = FastMCP(
     "elko-contacts",
     instructions="Persistent contact list with permissions for AI agents. "
-                 "Reads are open; writes require requester_email of a super-admin.",
+                 "Reads are open; writes require requester_email of a super-admin. "
+                 "Call contacts_summary first to confirm the skill is active.",
 )
 
 
 # ── READ tools ─────────────────────────────────────────────
 
 @mcp.tool()
-def list_all() -> list:
+def list_contacts() -> list:
     """List all contacts."""
     return contacts.list_all()
 
 
 @mcp.tool()
-def find(query: str) -> list:
+def find_contact(query: str) -> list:
     """Find contacts by name or email (partial match, max 20 results)."""
     return contacts.find(query)
 
 
 @mcp.tool()
-def get(email: str) -> dict:
+def get_contact(email: str) -> dict:
     """Get a contact by email, including phones and platform handles."""
     result = contacts.get_by_email(email)
     return result if result is not None else {"error": f"Contact {email} not found."}
 
 
 @mcp.tool()
-def get_permissions(email: str) -> list:
+def contact_permissions(email: str) -> list:
     """Get all permissions granted to a contact."""
     return contacts.get_permissions(email)
 
 
 @mcp.tool()
-def check_is_super_admin(email: str) -> bool:
+def is_super_admin(email: str) -> bool:
     """Check whether a contact has super-admin role."""
     return contacts.check_is_super_admin(email)
 
 
 @mcp.tool()
-def summary() -> str:
+def contacts_summary() -> str:
     """Quick stats: total contacts with admin and family counts."""
     return contacts.summary()
 
@@ -61,7 +62,7 @@ def summary() -> str:
 # ── WRITE tools (all require requester_email of a super-admin) ─
 
 @mcp.tool()
-def add(
+def add_contact(
     name: str,
     email: str,
     requester_email: str,
@@ -74,7 +75,7 @@ def add(
 
 
 @mcp.tool()
-def update(
+def update_contact(
     email: str,
     requester_email: str,
     name: str = None,
@@ -90,7 +91,7 @@ def update(
 
 
 @mcp.tool()
-def grant(
+def grant_permission(
     email: str,
     permission: str,
     requester_email: str,
@@ -101,6 +102,12 @@ def grant(
 
 
 def main():
+    admin_email = os.environ.get("ELKO_SUPER_ADMIN_EMAIL")
+    if admin_email:
+        result = contacts.bootstrap(admin_email)
+        if result.get("bootstrapped"):
+            print(f"[elko-contacts] bootstrapped super-admin: {admin_email}", file=sys.stderr)
+
     mcp.run()
 
 

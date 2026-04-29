@@ -15,38 +15,39 @@ from threads import threads
 mcp = FastMCP(
     "elko-threads",
     instructions="Cross-channel conversation tracking for AI agents. "
-                 "Captures messages from email, Telegram, GitHub, or any channel into persistent threads.",
+                 "Captures messages from email, Telegram, GitHub, or any channel into persistent threads. "
+                 "Call threads_summary first to confirm the skill is active.",
 )
 
 
 # ── READ tools ─────────────────────────────────────────────
 
 @mcp.tool()
-def active(limit: int = 10) -> list:
+def active_threads(limit: int = 10) -> list:
     """List active threads sorted by most recent activity."""
     return threads.active(limit=limit)
 
 
 @mcp.tool()
-def all_threads(status: str = None, limit: int = 20) -> list:
+def list_threads(status: str = None, limit: int = 20) -> list:
     """List all threads, optionally filtered by status (active, archived, etc.)."""
     return threads.all_by_status(status=status, limit=limit)
 
 
 @mcp.tool()
-def context(topic: str, channel: str = None, limit: int = 50) -> dict:
+def thread_context(topic: str, channel: str = None, limit: int = 50) -> dict:
     """Get full message history for a thread by topic (and optional channel)."""
     return threads.context(topic, channel=channel, limit=limit)
 
 
 @mcp.tool()
-def recent(limit: int = 5) -> list:
+def recent_threads(limit: int = 5) -> list:
     """Most recent activity across all threads."""
     return threads.recent(limit=limit)
 
 
 @mcp.tool()
-def summary() -> str:
+def threads_summary() -> str:
     """Quick stats: total threads, active threads, and message count."""
     return threads.summary()
 
@@ -54,7 +55,7 @@ def summary() -> str:
 # ── WRITE tools ────────────────────────────────────────────
 
 @mcp.tool()
-def capture(
+def capture_message(
     topic: str,
     channel: str,
     from_addr: str,
@@ -85,7 +86,7 @@ def capture(
 
 
 @mcp.tool()
-def tag(topic: str, tag: str) -> dict:
+def tag_thread(topic: str, tag: str) -> dict:
     """Add a tag to a thread (e.g. 'important', 'design', 'follow-up')."""
     return threads.tag(topic, tag)
 

@@ -3,8 +3,30 @@ description: Persistent contact list with permissions for AI agents
 version: "0.1.0"
 homepage: https://github.com/jsoprych/elko-skills
 license: MIT
+
 startCommand:
   type: stdio
   command: uvx
   args:
     - elko-contacts
+  env:
+    ELKO_SUPER_ADMIN_EMAIL: "{{config.superAdminEmail}}"
+    ELKO_CONTACTS_DB: "{{config.contactsDb}}"
+
+configSchema:
+  type: object
+  required: []
+  properties:
+    superAdminEmail:
+      type: string
+      format: email
+      description: >
+        Email address to seed as the first super-admin on startup.
+        Required for write operations (add_contact, update_contact, grant_permission).
+        Safe to set on an existing install — no-op if contacts already exist.
+    contactsDb:
+      type: string
+      description: >
+        Custom path for the contacts SQLite database.
+        Defaults to contacts/contacts.db relative to the installed package.
+        Use an absolute path for a persistent location across updates.
