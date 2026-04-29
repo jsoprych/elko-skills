@@ -1,0 +1,7 @@
+elko-skills v0.1.0
+Framework for database-backed structured skills for AI agents.
+- contacts: 41 tests
+- threads: 29 tests
+- elko_util: safe SQL builders, ElkoSkill base class, profiles, version tracking
+- Platform support: Hermes, Claude Code, Codex CLI, OpenClaw, OpenCode
+- Parallel installs via profiles.yaml
