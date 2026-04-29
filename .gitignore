@@ -1,0 +1,19 @@
+# elko-skills .gitignore
+
+# Never ship data files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Test artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Temp files
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
