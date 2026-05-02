@@ -1,14 +1,68 @@
 # elko-skills on Hermes Agent
 
-Hermes is the native platform. Two integration paths: **MCP server** (recommended for all agents) and **direct Python import** (Hermes-native, deepest integration).
+Hermes is the native platform. Three integration paths, ordered by simplicity:
+
+| Path | Best for |
+|------|----------|
+| [Python subprocess (MCP)](#mcp-python-subprocess) | **Primary** — runs inside Hermes container, uses `/data/elko/` directly |
+| [Docker container (MCP)](#mcp-docker-container) | If you prefer isolated containers per skill |
+| [Direct Python import](#direct-python-import) | Deepest integration, bootstrap card, registry |
 
 ---
 
-## MCP setup (recommended)
+## MCP — Python subprocess (recommended) {#mcp-python-subprocess}
 
-Each skill runs as an independent Docker container over stdio — the same pattern as `elko-market-mcp` and `elko-news-mcp`.
+Runs elko-skills as a Python subprocess **inside** the Hermes container. Hermes already owns `/data` as uid 10000 — no volume mounting, no UID negotiation, no Docker socket needed.
 
-Add to your Hermes MCP config (`~/.hermes/config.yaml` or equivalent):
+### One-time setup (inside Hermes container or in Hermes Dockerfile)
+
+```bash
+git clone https://github.com/jsoprych/elko-skills.git /opt/elko-skills
+pip install fastmcp
+mkdir -p /data/elko
+```
+
+### Hermes MCP config
+
+```yaml
+mcpServers:
+  elko-contacts:
+    command: python3
+    args:
+      - /opt/elko-skills/contacts/mcp_server.py
+    env:
+      ELKO_DATA_DIR: /data/elko
+      ELKO_SUPER_ADMIN_EMAIL: "you@example.com"
+
+  elko-threads:
+    command: python3
+    args:
+      - /opt/elko-skills/threads/mcp_server.py
+    env:
+      ELKO_DATA_DIR: /data/elko
+```
+
+`ELKO_DATA_DIR=/data/elko` puts all skill DBs under Hermes's `/data/elko/`:
+
+```
+/data/elko/
+  contacts.db    ← owned by hermes (uid 10000) ✓
+  threads.db     ← owned by hermes (uid 10000) ✓
+```
+
+`ELKO_SUPER_ADMIN_EMAIL` seeds the first super-admin on startup. No manual DB init needed.
+
+### Verify
+
+```bash
+python3 /opt/elko-skills/install_mcp.py --inspect
+```
+
+---
+
+## MCP — Docker container {#mcp-docker-container}
+
+Each skill runs as an independent Docker container over stdio. Requires Docker socket access from inside Hermes.
 
 ```yaml
 mcpServers:
@@ -18,10 +72,12 @@ mcpServers:
       - run
       - -i
       - --rm
+      - -u
+      - "10000"
       - -e
       - ELKO_SUPER_ADMIN_EMAIL
       - -v
-      - elko-contacts-data:/data
+      - /opt/data/elko-skills:/data
       - ghcr.io/jsoprych/elko-contacts:latest
     env:
       ELKO_SUPER_ADMIN_EMAIL: "you@example.com"
@@ -32,18 +88,18 @@ mcpServers:
       - run
       - -i
       - --rm
+      - -u
+      - "10000"
       - -v
-      - elko-threads-data:/data
+      - /opt/data/elko-skills:/data
       - ghcr.io/jsoprych/elko-threads:latest
 ```
 
-`ELKO_SUPER_ADMIN_EMAIL` seeds the first super-admin on startup. No manual DB init needed.
-
-Data persists in named Docker volumes (`elko-contacts-data`, `elko-threads-data`) across container restarts.
+`-u 10000` matches Hermes's uid so the bind-mounted `/opt/data/elko-skills` is writable.
 
 ### Pre-release: local build
 
-Until images are published to GHCR, build locally from the repo:
+Until images are published to GHCR, build on the host:
 
 ```bash
 git clone https://github.com/jsoprych/elko-skills.git
@@ -52,52 +108,20 @@ docker build -f contacts/Dockerfile -t ghcr.io/jsoprych/elko-contacts:latest .
 docker build -f threads/Dockerfile  -t ghcr.io/jsoprych/elko-threads:latest  .
 ```
 
-### Test the containers
-
-```bash
-printf '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}\n' \
-  | docker run -i --rm ghcr.io/jsoprych/elko-contacts:latest 2>/dev/null
-```
-
 ---
 
-## Direct Python import (Hermes-native)
+## Direct Python import {#direct-python-import}
 
-### One-liner install
+Deepest Hermes integration — auto-registered in elko-registry, appears in bootstrap card.
 
-```bash
-./install.sh contacts
-./install.sh threads
-```
-
-The installer detects Hermes from `HERMES_DATA_DIR` or `~/.hermes/config.yaml` and auto-registers in `elko-registry.db`.
-
-### Manual setup
-
-**1. Clone**
+### Setup
 
 ```bash
 git clone https://github.com/jsoprych/elko-skills.git /opt/data/elko-skills
+pip install fastmcp
 ```
 
-**2. Init DBs**
-
-```bash
-cd /opt/data/elko-skills
-ELKO_CONTACTS_DB=/opt/data/elko-skills/contacts/contacts.db python3 contacts/init_contacts.py
-ELKO_THREADS_DB=/opt/data/elko-skills/threads/threads.db   python3 threads/init_threads.py
-```
-
-**3. Seed super-admin**
-
-```bash
-ELKO_CONTACTS_DB=/opt/data/elko-skills/contacts/contacts.db python3 -c "
-from contacts import contacts
-print(contacts.bootstrap('you@example.com'))
-"
-```
-
-**4. Register in elko-registry**
+### Register in elko-registry
 
 ```python
 import sqlite3
@@ -117,7 +141,7 @@ db.execute("""
 db.commit()
 ```
 
-**5. Add to startup.py / bootstrap card**
+### Add to startup.py
 
 ```python
 import sys
@@ -126,9 +150,16 @@ from contacts import contacts
 from threads import threads
 ```
 
+### Seed super-admin (first run only)
+
+```python
+from contacts import contacts
+contacts.bootstrap('you@example.com')
+```
+
 ---
 
-## Usage in Hermes (direct import)
+## Usage (direct import)
 
 ```python
 from contacts import contacts
@@ -136,9 +167,8 @@ from threads import threads
 
 # Reads — no auth needed
 contacts.list_all()
-contacts.get_by_email('john@elko.ai')
 contacts.find('john')
-contacts.check_is_super_admin('john@elko.ai')
+contacts.get_by_email('john@elko.ai')
 
 # Writes — require requester_email of a super-admin
 contacts.add('Diana', 'diana@example.com', requester_email='john@elko.ai')
@@ -156,8 +186,6 @@ threads.summary()
 
 ## Bootstrap card output
 
-Every session prints:
-
 ```
 ╔══════════════════════════════════════════════════════════╗
 ║                    ELKO-SKILLS                          ║
@@ -169,29 +197,33 @@ Every session prints:
 
 ---
 
-## Env var configuration
+## Env vars
 
-```bash
-export ELKO_CONTACTS_DB=/opt/data/elko-skills/contacts/contacts.db
-export ELKO_THREADS_DB=/opt/data/elko-skills/threads/threads.db
-export ELKO_SUPER_ADMIN_EMAIL=you@example.com   # auto-seeds admin on first MCP start
-```
+| Var | Default | Purpose |
+|-----|---------|---------|
+| `ELKO_DATA_DIR` | — | All skill DBs land in `$ELKO_DATA_DIR/{skill}.db` |
+| `ELKO_CONTACTS_DB` | `$ELKO_DATA_DIR/contacts.db` | Override contacts DB path |
+| `ELKO_THREADS_DB` | `$ELKO_DATA_DIR/threads.db` | Override threads DB path |
+| `ELKO_SUPER_ADMIN_EMAIL` | — | Seeds first super-admin on startup |
+
+For Hermes: set `ELKO_DATA_DIR=/data/elko` and nothing else is needed.
 
 ---
 
-## Sandbox install
+## Diagnose
 
 ```bash
-python3 install_mcp.py contacts --sandbox
-python3 install_mcp.py threads  --sandbox
-# All DBs in ~/.elko-sandbox/  —  purge: rm -rf ~/.elko-sandbox
+python3 /opt/elko-skills/install_mcp.py --inspect
 ```
+
+Shows resolved DB paths, file status, permissions, and all active ELKO_* vars
+for the current environment.
 
 ---
 
 ## Testing
 
 ```bash
-cd /opt/data/elko-skills
+cd /opt/elko-skills
 python3 -m pytest contacts/tests threads/tests -q
 ```
