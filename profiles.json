@@ -5,12 +5,12 @@
         "contacts": {
           "source": "~/.elko-skills/releases/v0.1.0/contacts",
           "db": "/opt/data/elko-skills/contacts/contacts.db",
-          "registry_name": "hs-contacts"
+          "registry_name": "elko-contacts"
         },
         "threads": {
           "source": "~/.elko-skills/releases/v0.1.0/threads",
           "db": "/opt/data/elko-skills/threads/threads.db",
-          "registry_name": "hs-threads"
+          "registry_name": "elko-threads"
         }
       }
     },
@@ -19,12 +19,12 @@
         "contacts": {
           "source": "/home/user/code/elko-skills/contacts",
           "db": "/tmp/elko-contacts-dev.db",
-          "registry_name": "hs-contacts-dev"
+          "registry_name": "elko-contacts-dev"
         },
         "threads": {
           "source": "/home/user/code/elko-skills/threads",
           "db": "/tmp/elko-threads-dev.db",
-          "registry_name": "hs-threads-dev"
+          "registry_name": "elko-threads-dev"
         }
       }
     },
@@ -32,11 +32,11 @@
       "skills": {
         "contacts": {
           "db": "/tmp/elko-contacts-test.db",
-          "registry_name": "hs-contacts-test"
+          "registry_name": "elko-contacts-test"
         },
         "threads": {
           "db": "/tmp/elko-threads-test.db",
-          "registry_name": "hs-threads-test"
+          "registry_name": "elko-threads-test"
         }
       }
     }

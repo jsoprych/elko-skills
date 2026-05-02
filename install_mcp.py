@@ -395,6 +395,11 @@ def main():
         action="store_true",
         help="Show all supported platforms and detection status",
     )
+    parser.add_argument(
+        "--inspect",
+        action="store_true",
+        help="Show resolved DB paths, permissions, and ELKO_* env vars for this environment",
+    )
 
     args = parser.parse_args()
 
@@ -403,6 +408,13 @@ def main():
         for pid, (detect, _, label) in PLATFORM_REGISTRY.items():
             status = "✓ detected" if detect() else "– not found"
             print(f"  {label:<22} {status}  ({pid})")
+        return
+
+    if args.inspect:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).parent))
+        from elko_util import ElkoSkill
+        ElkoSkill.diagnose()
         return
 
     if not args.skill:

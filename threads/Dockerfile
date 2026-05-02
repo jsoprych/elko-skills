@@ -36,6 +36,9 @@ COPY --chown=app:app threads/pyproject.toml threads/
 USER app
 
 VOLUME ["/data"]
-ENV ELKO_THREADS_DB=/data/threads.db
+
+# All elko-skill DBs resolve to /data/{name}.db by default in Docker.
+# Override individual skills with ELKO_THREADS_DB if needed.
+ENV ELKO_DATA_DIR=/data
 
 ENTRYPOINT ["python3", "/app/threads/mcp_server.py"]

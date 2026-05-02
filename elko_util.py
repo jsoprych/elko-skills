@@ -13,11 +13,16 @@ Import:
     conn.execute("SELECT * FROM contacts WHERE email = ?", (email,))
 
 Design:
-    - DB path: env var > profile path > default path. Env var is ALWAYS authoritative.
-    - Connection: auto-creates DB + schema if missing. Idempotent.
+    - DB path resolved in priority order:
+        1. ELKO_{NAME}_DB env var        — explicit override, always wins
+        2. Profile path (profiles.json)  — dev/test/prod isolation
+        3. ELKO_DATA_DIR/{name}.db       — shared data dir (Docker volume, custom mount)
+        4. ~/.local/share/elko/{name}.db — XDG-compliant host default
+        5. ./{name}/{name}.db            — dev/repo layout (last resort)
+    - Connection: auto-creates parent dirs + DB + schema. Idempotent.
     - SQL injection: safe_update() validates column whitelist, uses ? placeholders.
     - Version tracking: each DB has a meta table with version and installation_id.
-    - Profile support: dev/test/prod isolation via profiles.yaml.
+    - Profile support: dev/test/prod isolation via profiles.json.
 """
 import os, json, sqlite3
 
@@ -85,26 +90,27 @@ def load_profile(profile_name=None):
 class ElkoSkill:
     """Base class for every elko-skill. Handles DB lifecycle and connection.
 
-    The DB path is resolved in this priority:
-        1. Env var (ELKO_{NAME}_DB) — highest priority, always honoured
-        2. Profile path from profiles.yaml — for dev/test isolation
-        3. Default path (<skill_dir>/<name>.db) — production default
+    DB path priority (highest to lowest):
+        1. ELKO_{NAME}_DB env var
+        2. Profile path from profiles.json
+        3. ELKO_DATA_DIR/{filename}
+        4. ~/.local/share/elko/{filename}   (XDG-compliant host default)
+        5. ./{name}/{filename}              (dev/repo layout)
     """
 
     def __init__(self, name, env_var, default_db_filename, schema_sql):
         """
         Args:
-            name: Human-readable skill name (for error messages)
-            env_var: env var name like 'ELKO_CONTACTS_DB'
-            default_db_filename: 'contacts.db' — used if env var unset
-            schema_sql: string of CREATE TABLE statements (with IF NOT EXISTS)
+            name: Skill name, e.g. 'contacts'
+            env_var: Env var name, e.g. 'ELKO_CONTACTS_DB'
+            default_db_filename: Filename, e.g. 'contacts.db'
+            schema_sql: CREATE TABLE statements (IF NOT EXISTS)
         """
         self.name = name
         self.env_var = env_var
         self.schema_sql = schema_sql
 
-        # Resolve DB path:
-        # 1. Env var wins everything
+        # 1. Explicit env var — always wins
         env_path = os.environ.get(env_var)
         if env_path:
             self.db_path = env_path
@@ -118,16 +124,24 @@ class ElkoSkill:
             self.db_path = profile_db
             return
 
-        # 3. Default: next to the skill module
-        skill_dir = os.path.dirname(os.path.abspath(__file__))
-        self.db_path = os.path.join(skill_dir, name, default_db_filename)
+        # 3. ELKO_DATA_DIR — shared data directory (Docker volume, custom mount)
+        data_dir = os.environ.get('ELKO_DATA_DIR')
+        if data_dir:
+            self.db_path = os.path.join(data_dir, default_db_filename)
+            return
+
+        # 4. XDG-compliant host default (~/.local/share/elko/)
+        xdg_base = os.environ.get('XDG_DATA_HOME',
+                                   os.path.join(os.path.expanduser('~'), '.local', 'share'))
+        self.db_path = os.path.join(xdg_base, 'elko', default_db_filename)
 
     def connect(self):
-        """Get a connection. Auto-creates DB + schema + meta table.
+        """Get a connection. Auto-creates parent dirs + DB + schema + meta table.
 
         Idempotent — uses IF NOT EXISTS so schema is safe to re-run.
         Returns an open sqlite3.Connection.
         """
+        os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
         db_exists = os.path.exists(self.db_path)
         conn = sqlite3.connect(self.db_path)
 
@@ -177,10 +191,7 @@ class ElkoSkill:
         return dict(row) if row else None
 
     def version(self):
-        """Return the version of this skill's database.
-
-        Returns {'framework_version': str, 'installed_at': str} or empty dict.
-        """
+        """Return the version of this skill's database."""
         try:
             conn = self.connect()
             rows = conn.execute(
@@ -191,6 +202,92 @@ class ElkoSkill:
             return dict(rows)
         except sqlite3.OperationalError:
             return {}
+
+    @classmethod
+    def diagnose(cls, skills=None):
+        """Print full environment and path diagnostics for all known skills.
+
+        Shows resolved DB paths, file status, directory permissions, and all
+        ELKO_* env vars. Useful for debugging installs across different
+        ecosystems (Docker, Claude Code, Cursor, Hermes, OpenCode, etc.).
+
+        Args:
+            skills: list of (name, env_var, filename) tuples. Defaults to all.
+        """
+        if skills is None:
+            skills = [
+                ('contacts',    'ELKO_CONTACTS_DB',    'contacts.db'),
+                ('threads',     'ELKO_THREADS_DB',     'threads.db'),
+                ('credentials', 'ELKO_CREDENTIALS_DB', 'credentials.db'),
+                ('audit',       'ELKO_AUDIT_DB',       'audit.db'),
+                ('tasks',       'ELKO_TASKS_DB',       'tasks.db'),
+            ]
+
+        lines = ['', '── elko-skills environment ──────────────────────────']
+
+        # Runtime info
+        import platform, sys
+        lines.append(f'  platform   : {platform.system()} {platform.release()}')
+        lines.append(f'  python     : {sys.version.split()[0]}')
+        lines.append(f'  framework  : elko-util v{VERSION}')
+        lines.append('')
+
+        # ELKO_* env vars
+        elko_vars = {k: v for k, v in os.environ.items() if k.startswith('ELKO_')}
+        lines.append('  ELKO_* env vars:')
+        for k, v in sorted(elko_vars.items()):
+            # Mask sensitive values
+            display = v if 'KEY' not in k and 'SECRET' not in k and 'PASSWORD' not in k else '***'
+            lines.append(f'    {k:<30} = {display}')
+        if not elko_vars:
+            lines.append('    (none set)')
+        lines.append('')
+
+        # Active profile
+        active_profile = os.environ.get('ELKO_PROFILE', 'prod')
+        profile = load_profile(active_profile)
+        lines.append(f'  active profile : {active_profile}')
+        lines.append('')
+
+        # Per-skill DB resolution — mirrors __init__ priority chain
+        lines.append('  Skill DB paths:')
+        for name, env_var, filename in skills:
+            path = os.environ.get(env_var)
+            source = f'${env_var}'
+            if not path:
+                profile_db = profile.get('skills', {}).get(name, {}).get('db')
+                if profile_db:
+                    path = profile_db
+                    source = f'profile:{active_profile}'
+                else:
+                    data_dir = os.environ.get('ELKO_DATA_DIR')
+                    if data_dir:
+                        path = os.path.join(data_dir, filename)
+                        source = '$ELKO_DATA_DIR'
+                    else:
+                        xdg = os.environ.get('XDG_DATA_HOME',
+                                             os.path.join(os.path.expanduser('~'), '.local', 'share'))
+                        path = os.path.join(xdg, 'elko', filename)
+                        source = 'XDG default'
+
+            exists = os.path.exists(path)
+            parent = os.path.dirname(path)
+            writable = os.access(parent, os.W_OK) if os.path.exists(parent) else False
+            size = f'{os.path.getsize(path):,} bytes' if exists else '—'
+
+            status = '✓' if exists else '✗ not found'
+            perm = 'rw' if writable else '✗ not writable'
+            lines.append(f'    {name:<14} [{status}] [{perm}]  {size}')
+            lines.append(f'    {"":14} {path}')
+            lines.append(f'    {"":14} source: {source}')
+
+        lines.append('')
+        lines.append('─' * 54)
+        lines.append('')
+
+        report = '\n'.join(lines)
+        print(report)
+        return report
 
 
 # ═══════════════════════════════════════════════════════════

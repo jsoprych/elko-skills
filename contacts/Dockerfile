@@ -37,6 +37,9 @@ COPY --chown=app:app contacts/pyproject.toml contacts/
 USER app
 
 VOLUME ["/data"]
-ENV ELKO_CONTACTS_DB=/data/contacts.db
+
+# All elko-skill DBs resolve to /data/{name}.db by default in Docker.
+# Override individual skills with ELKO_CONTACTS_DB if needed.
+ENV ELKO_DATA_DIR=/data
 
 ENTRYPOINT ["python3", "/app/contacts/mcp_server.py"]
