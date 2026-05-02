@@ -26,6 +26,7 @@ dependencies = ["fastmcp>=2.0"]
 
 [project.scripts]
 elko-contacts = "contacts.mcp_server:main"
+elko-contacts-cli = "contacts.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/jsoprych/elko-skills"

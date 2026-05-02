@@ -26,6 +26,7 @@ dependencies = ["fastmcp>=2.0"]
 
 [project.scripts]
 elko-threads = "threads.mcp_server:main"
+elko-threads-cli = "threads.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/jsoprych/elko-skills"
